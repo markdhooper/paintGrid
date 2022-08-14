@@ -1,0 +1,102 @@
+#!/usr/bin/env python3
+
+import os
+from optparse import OptionParser
+from PIL import Image, ImageDraw, ImageFont
+
+
+def main():
+    parser = OptionParser()  # use optparse to handle command line arguments
+    parser.add_option("-i", "--input", action="store", type="string",
+                      dest="input_file", default=None, help="input file [default: %default]")
+    parser.add_option("-o", "--output", action="store", type="string",
+                      dest="output_file", default="out.png", help="output file [default: %default]")
+    (args, cli_args) = parser.parse_args()
+
+    im = getImage(args)
+    gridSettings = getGridSettings()
+    drawGrid(im, gridSettings, args)
+
+def getGridSettings():
+    gridSettings = {
+        "h_cnt": 12,
+        "v_cnt": 9
+    }
+    valid = False
+    while not valid: 
+        h_cnt = input("Number of horizontal divisions: ")
+        v_cnt = input("Number of vertical divisions: ")
+        if h_cnt.isnumeric() and v_cnt.isnumeric() and int(h_cnt) > 0 and int(v_cnt) > 0:
+            gridSettings["h_cnt"] = int(h_cnt)
+            gridSettings["v_cnt"] = int(v_cnt)
+            valid = True
+        else:
+            print("divisions need to be positive integers, try again.")
+    return gridSettings
+
+def drawGrid(im, gridSettings, args):
+    gridSettings["square_px_h"] = im.size[0]/gridSettings["h_cnt"]
+    gridSettings["square_px_v"] = im.size[1]/gridSettings["v_cnt"]
+    gridSettings["square_px"] = min(gridSettings["square_px_v"],gridSettings["square_px_h"])
+
+    offset_x = (im.size[0] - gridSettings["square_px"]*(gridSettings["h_cnt"]))/2
+    offset_y = (im.size[1] - gridSettings["square_px"]*(gridSettings["v_cnt"]))/2
+    
+    # get a drawing context
+    draw = ImageDraw.Draw(im)
+    for i in range(0,gridSettings["h_cnt"]+1):
+        draw.line(
+                (offset_x+(i*gridSettings["square_px"]),
+                offset_y,
+                offset_x+(i*gridSettings["square_px"]),
+                offset_y+(gridSettings["square_px"]*gridSettings["v_cnt"])),
+                fill=(255, 255, 255, 128),
+                width=3
+        )
+    for j in range(0,gridSettings["v_cnt"]+1):
+        draw.line(
+            (offset_x,
+            offset_y+(j*gridSettings["square_px"]),
+            offset_x+(gridSettings["square_px"]*gridSettings["h_cnt"]),
+            offset_y+(j*gridSettings["square_px"])),
+            fill=(255, 255, 255, 128),
+            width=3)
+    draw.line((0, 0) + im.size, fill=(255, 255, 255, 128), width=3)
+    draw.line((0, im.size[1], im.size[0], 0), fill=(255, 255, 255, 128), width=3)
+    for i in range(0,gridSettings["h_cnt"]):
+        for j in range(0,gridSettings["v_cnt"]):
+            draw.rectangle(
+                (offset_x+(i*gridSettings["square_px"]),
+                offset_y+(j*gridSettings["square_px"]),
+                offset_x+(i*gridSettings["square_px"])+gridSettings["square_px"],
+                offset_y+(j*gridSettings["square_px"])+gridSettings["square_px"]),
+                outline=(0, 0, 0))
+    draw.line((0, 0) + im.size, fill=128)
+    draw.line((0, im.size[1], im.size[0], 0), fill=128)
+    cropped = im.crop(box=(offset_x,
+            offset_y,
+            offset_x+(gridSettings["square_px"]*gridSettings["h_cnt"]),
+            offset_y++(gridSettings["square_px"]*gridSettings["v_cnt"])))
+
+    print("Saving full sized grid image as {c}".format(c=args.output_file))
+    im.save(args.output_file)
+    cropped_filename = args.output_file.split('.')[0] + "_cropped." + args.output_file.split('.')[1]
+    print("Saving cropped image as {c}".format(c=cropped_filename))
+    cropped.save(cropped_filename)
+
+
+def getImage(args):
+    if args.input_file == None:
+        print("no input file provided.")
+        exit(1)
+
+    try:
+        im = Image.open(args.input_file)
+    except FileNotFoundError as nf:
+        print("Unable to open {i}".format(i=args.input_file))
+        exit(1)
+
+    return im.convert("RGBA")
+
+if __name__ == "__main__":
+    main()
